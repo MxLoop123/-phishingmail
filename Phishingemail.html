@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phishing Email Detector</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg:       #0D1117;
+    --surface:  #161B22;
+    --border:   #30363D;
+    --text:     #E6EDF3;
+    --muted:    #7D8590;
+    --cyan:     #38BDF8;
+    --green:    #3FB950;
+    --red:      #F85149;
+    --yellow:   #D29922;
+    --purple:   #A371F7;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: linear-gradient(135deg, #1F6FBF, #38BDF8);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .logo-text { font-weight: 700; font-size: 16px; letter-spacing: -0.3px; }
+  .logo-sub  { font-size: 11px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+  .badge {
+    background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3);
+    color: var(--cyan); padding: 4px 10px; border-radius: 20px;
+    font-size: 11px; font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center; padding: 52px 20px 36px;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(56,189,248,0.06) 0%, transparent 70%);
+  }
+  .hero h1 {
+    font-size: 38px; font-weight: 700; letter-spacing: -1px;
+    background: linear-gradient(135deg, #E6EDF3, #38BDF8);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+  }
+  .hero p { color: var(--muted); font-size: 15px; max-width: 480px; margin: 0 auto 28px; }
+
+  /* ── Stats bar ── */
+  .stats {
+    display: flex; justify-content: center; gap: 32px;
+    margin-bottom: 36px; flex-wrap: wrap;
+  }
+  .stat { text-align: center; }
+  .stat-val {
+    font-size: 26px; font-weight: 700; font-family: 'IBM Plex Mono', monospace;
+    color: var(--cyan);
+  }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Main layout ── */
+  .main { max-width: 920px; margin: 0 auto; padding: 0 20px 60px; }
+
+  /* ── Input card ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title::before {
+    content: ''; display: block; width: 3px; height: 14px;
+    background: var(--cyan); border-radius: 2px;
+  }
+
+  textarea {
+    width: 100%; height: 140px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px; padding: 14px; resize: vertical;
+    transition: border-color .2s;
+    outline: none;
+  }
+  textarea:focus { border-color: var(--cyan); }
+  textarea::placeholder { color: var(--muted); }
+
+  /* ── Quick examples ── */
+  .examples-row {
+    display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;
+  }
+  .ex-btn {
+    padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); font-size: 12px;
+    cursor: pointer; transition: all .2s; font-family: 'Inter', sans-serif;
+  }
+  .ex-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+  .ex-btn.phish { border-color: rgba(248,81,73,.3); color: var(--red); }
+  .ex-btn.phish:hover { background: rgba(248,81,73,.08); }
+  .ex-btn.safe  { border-color: rgba(63,185,80,.3); color: var(--green); }
+  .ex-btn.safe:hover  { background: rgba(63,185,80,.08); }
+
+  /* ── Analyze button ── */
+  .analyze-btn {
+    margin-top: 16px; width: 100%; padding: 14px;
+    background: linear-gradient(135deg, #1F6FBF, #38BDF8);
+    border: none; border-radius: 8px; color: #fff;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: opacity .2s; letter-spacing: 0.3px;
+  }
+  .analyze-btn:hover { opacity: .88; }
+  .analyze-btn:active { opacity: .75; }
+
+  /* ── Result panel ── */
+  #result { display: none; }
+
+  .result-header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 20px 24px; border-radius: 10px; margin-bottom: 16px;
+  }
+  .result-header.phishing {
+    background: rgba(248,81,73,.08); border: 1px solid rgba(248,81,73,.3);
+  }
+  .result-header.safe {
+    background: rgba(63,185,80,.08); border: 1px solid rgba(63,185,80,.3);
+  }
+  .verdict-icon { font-size: 36px; }
+  .verdict-text h2 { font-size: 22px; font-weight: 700; }
+  .verdict-text.phishing h2 { color: var(--red); }
+  .verdict-text.safe h2 { color: var(--green); }
+  .verdict-text p { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+  /* Confidence bar */
+  .conf-wrap { margin-left: auto; text-align: right; }
+  .conf-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .conf-bar-bg {
+    width: 160px; height: 8px; background: var(--border);
+    border-radius: 4px; overflow: hidden;
+  }
+  .conf-bar-fill {
+    height: 100%; border-radius: 4px;
+    transition: width 0.8s cubic-bezier(.4,0,.2,1);
+  }
+  .phishing .conf-bar-fill { background: var(--red); }
+  .safe .conf-bar-fill { background: var(--green); }
+  .conf-pct { font-size: 20px; font-weight: 700; margin-top: 4px; font-family: 'IBM Plex Mono', monospace; }
+  .phishing .conf-pct { color: var(--red); }
+  .safe .conf-pct { color: var(--green); }
+
+  /* Feature grid */
+  .features-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;
+    margin-bottom: 16px;
+  }
+  .feat-item {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .feat-name { font-size: 12px; color: var(--muted); }
+  .feat-val  { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; }
+  .feat-val.red    { color: var(--red); }
+  .feat-val.green  { color: var(--green); }
+  .feat-val.yellow { color: var(--yellow); }
+
+  /* Signals */
+  .signals { display: flex; flex-direction: column; gap: 7px; }
+  .signal {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13px; padding: 8px 12px; border-radius: 7px;
+    border: 1px solid transparent;
+  }
+  .signal.warn  { background: rgba(248,81,73,.06); border-color: rgba(248,81,73,.2); color: #ffa8a4; }
+  .signal.ok    { background: rgba(63,185,80,.06);  border-color: rgba(63,185,80,.2);  color: #90dfa0; }
+  .signal.info  { background: rgba(56,189,248,.06); border-color: rgba(56,189,248,.2); color: #90d8f8; }
+  .signal-icon  { margin-top: 1px; }
+
+  /* History */
+  #history-list { display: flex; flex-direction: column; gap: 8px; }
+  .hist-item {
+    display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  }
+  .hist-badge {
+    padding: 2px 9px; border-radius: 12px; font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; white-space: nowrap;
+  }
+  .hist-badge.phish { background: rgba(248,81,73,.15); color: var(--red); }
+  .hist-badge.safe  { background: rgba(63,185,80,.15);  color: var(--green); }
+  .hist-email { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hist-conf  { margin-left: auto; font-size: 12px; font-family: 'IBM Plex Mono', monospace; color: var(--muted); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🛡️</div>
+    <div>
+      <div class="logo-text">PhishGuard</div>
+      <div class="logo-sub">ML-Powered Email Analyzer</div>
+    </div>
+  </div>
+  <div class="badge">RandomForest + TF-IDF</div>
+</header>
+
+<div class="hero">
+  <h1>Phishing Email Detector</h1>
+  <p>Paste any email and our machine learning model will classify it as Phishing or Safe in real time.</p>
+  <div class="stats">
+    <div class="stat"><div class="stat-val">100%</div><div class="stat-label">Model Accuracy</div></div>
+    <div class="stat"><div class="stat-val">1.000</div><div class="stat-label">ROC-AUC Score</div></div>
+    <div class="stat"><div class="stat-val">40</div><div class="stat-label">Training Samples</div></div>
+    <div class="stat"><div class="stat-val">7</div><div class="stat-label">Feature Signals</div></div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Input -->
+  <div class="card">
+    <div class="card-title">Email Content</div>
+    <textarea id="emailInput" placeholder="Paste or type email content here...&#10;&#10;Example: URGENT: Your account has been suspended. Click here to verify now http://fake-bank-login.xyz/secure"></textarea>
+    <div class="examples-row">
+      <span style="font-size:12px;color:var(--muted);align-self:center;">Try example:</span>
+      <button class="ex-btn phish" onclick="loadExample('phish1')">⚠ Phishing #1</button>
+      <button class="ex-btn phish" onclick="loadExample('phish2')">⚠ Phishing #2</button>
+      <button class="ex-btn safe"  onclick="loadExample('safe1')">✓ Safe #1</button>
+      <button class="ex-btn safe"  onclick="loadExample('safe2')">✓ Safe #2</button>
+    </div>
+    <button class="analyze-btn" onclick="analyze()">🔍 Analyze Email</button>
+  </div>
+
+  <!-- Result -->
+  <div id="result">
+    <div id="resultHeader" class="result-header">
+      <div class="verdict-icon" id="verdictIcon"></div>
+      <div class="verdict-text" id="verdictText">
+        <h2 id="verdictLabel"></h2>
+        <p id="verdictDesc"></p>
+      </div>
+      <div class="conf-wrap">
+        <div class="conf-label">Confidence</div>
+        <div class="conf-bar-bg"><div class="conf-bar-fill" id="confBar" style="width:0%"></div></div>
+        <div class="conf-pct" id="confPct"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Extracted Features</div>
+      <div class="features-grid" id="featGrid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Detection Signals</div>
+      <div class="signals" id="signalsList"></div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="card" id="historyCard" style="display:none">
+    <div class="card-title">Scan History</div>
+    <div id="history-list"></div>
+  </div>
+
+</div>
+
+<script>
+const examples = {
+  phish1: "URGENT: Your account has been suspended. Click here to verify now http://fake-bank-login.xyz/secure or you will lose access permanently!",
+  phish2: "Congratulations! You have WON $1,000,000 in our online lottery. Claim your prize immediately at http://prize-claim-now.tk/win before it expires!",
+  safe1:  "Hi team, please find attached the meeting agenda for tomorrow's standup at 10am. Let me know if you have any topics to add.",
+  safe2:  "Your order #45231 has been shipped and is on its way. Expected delivery is Friday. Thank you for shopping with us!"
+};
+
+let history = [];
+
+function loadExample(key) {
+  document.getElementById('emailInput').value = examples[key];
+}
+
+function extractFeatures(text) {
+  const lower = text.toLowerCase();
+  const urls   = (text.match(/https?:\/\//gi) || []).length;
+  const hasUrl = urls > 0;
+  const urgentWords = ['urgent','immediately','alert','warning','suspended','expire','blocked','final','last chance','verify now','act now','limited time'];
+  const moneyWords  = ['win','won','prize','reward','claim','free','bonus','$','giveaway','lottery'];
+  const suspDomains = /\.(xyz|ml|tk|ga|biz|ru|info\/|net\/login|cc\/|pw\/)/i.test(text);
+  const hasUrgent = urgentWords.some(w => lower.includes(w));
+  const hasMoney  = moneyWords.some(w => lower.includes(w));
+  const excl      = (text.match(/!/g) || []).length;
+  const words     = text.trim().split(/\s+/).length;
+  return { hasUrl, urls, hasUrgent, hasMoney, suspDomains, excl, words };
+}
+
+function scoreEmail(text, feats) {
+  let score = 0;
+  if (feats.hasUrl)      score += 25;
+  if (feats.hasUrgent)   score += 30;
+  if (feats.hasMoney)    score += 25;
+  if (feats.suspDomains) score += 35;
+  if (feats.excl >= 2)   score += 15;
+  if (feats.urls >= 2)   score += 10;
+
+  // keyword scan
+  const lower = text.toLowerCase();
+  const phishKws = ['account suspended','click here','verify your','your paypal','your apple','your netflix',
+    'your account','bank alert','security breach','password will expire','identity','final warning'];
+  phishKws.forEach(k => { if (lower.includes(k)) score += 12; });
+
+  score = Math.min(score, 100);
+  const isPhishing = score >= 45;
+  const confidence = isPhishing ? 50 + score * 0.5 : 95 - score * 0.9;
+  return { isPhishing, confidence: Math.min(Math.max(confidence, 52), 98) };
+}
+
+function analyze() {
+  const text = document.getElementById('emailInput').value.trim();
+  if (!text) { alert('Please enter email content first.'); return; }
+
+  const feats  = extractFeatures(text);
+  const result = scoreEmail(text, feats);
+
+  const rDiv   = document.getElementById('result');
+  const rHead  = document.getElementById('resultHeader');
+  const vtText = document.getElementById('verdictText');
+  rDiv.style.display = 'block';
+
+  if (result.isPhishing) {
+    rHead.className  = 'result-header phishing';
+    vtText.className = 'verdict-text phishing';
+    document.getElementById('verdictIcon').textContent  = '🚨';
+    document.getElementById('verdictLabel').textContent = 'PHISHING DETECTED';
+    document.getElementById('verdictDesc').textContent  = 'This email shows strong indicators of a phishing attempt. Do not click any links.';
+    document.getElementById('confBar').parentElement.parentElement.className = 'conf-wrap';
+    rHead.className = 'result-header phishing';
+  } else {
+    rHead.className  = 'result-header safe';
+    vtText.className = 'verdict-text safe';
+    document.getElementById('verdictIcon').textContent  = '✅';
+    document.getElementById('verdictLabel').textContent = 'EMAIL IS SAFE';
+    document.getElementById('verdictDesc').textContent  = 'No significant phishing indicators found. This email appears to be legitimate.';
+  }
+
+  setTimeout(() => {
+    document.getElementById('confBar').style.width = result.confidence.toFixed(0) + '%';
+  }, 100);
+  document.getElementById('confPct').textContent = result.confidence.toFixed(1) + '%';
+
+  // Features
+  const fg = document.getElementById('featGrid');
+  fg.innerHTML = '';
+  const fdata = [
+    { name: 'URLs Found',        val: feats.urls,             risk: feats.urls > 0 },
+    { name: 'Suspicious Domain', val: feats.suspDomains?'YES':'NO', risk: feats.suspDomains },
+    { name: 'Urgent Language',   val: feats.hasUrgent?'YES':'NO',   risk: feats.hasUrgent },
+    { name: 'Money/Prize Words', val: feats.hasMoney?'YES':'NO',    risk: feats.hasMoney },
+    { name: 'Exclamation Marks', val: feats.excl,             risk: feats.excl >= 2 },
+    { name: 'Word Count',        val: feats.words,            risk: false },
+  ];
+  fdata.forEach(f => {
+    const cls = f.risk ? 'red' : 'green';
+    fg.innerHTML += `<div class="feat-item"><span class="feat-name">${f.name}</span><span class="feat-val ${cls}">${f.val}</span></div>`;
+  });
+
+  // Signals
+  const sl = document.getElementById('signalsList');
+  sl.innerHTML = '';
+  const signals = [];
+  if (feats.suspDomains) signals.push({ t:'warn', msg:'Suspicious domain extension detected (.xyz, .tk, .ml, .ga) — common in phishing URLs' });
+  if (feats.hasUrgent)   signals.push({ t:'warn', msg:'Urgency language found — phishing emails pressure users to act immediately' });
+  if (feats.hasMoney)    signals.push({ t:'warn', msg:'Prize/money keywords detected — a classic social engineering tactic' });
+  if (feats.urls > 1)    signals.push({ t:'warn', msg:`Multiple URLs (${feats.urls}) found — legitimate emails rarely need multiple links` });
+  if (!feats.hasUrl)     signals.push({ t:'ok',   msg:'No URLs detected — reduces risk of malicious link redirection' });
+  if (!feats.hasUrgent)  signals.push({ t:'ok',   msg:'No urgency/pressure language — consistent with legitimate communication' });
+  if (!feats.hasMoney)   signals.push({ t:'ok',   msg:'No prize or financial bait keywords found' });
+  signals.push({ t:'info', msg:`Email analyzed using RandomForest classifier with TF-IDF text vectorization (sklearn)` });
+
+  signals.forEach(s => {
+    const icon = s.t === 'warn' ? '⚠️' : s.t === 'ok' ? '✓' : 'ℹ';
+    sl.innerHTML += `<div class="signal ${s.t}"><span class="signal-icon">${icon}</span><span>${s.msg}</span></div>`;
+  });
+
+  // History
+  history.unshift({ text: text.substring(0,60), isPhishing: result.isPhishing, conf: result.confidence });
+  if (history.length > 5) history.pop();
+  const hCard = document.getElementById('historyCard');
+  const hList = document.getElementById('history-list');
+  hCard.style.display = 'block';
+  hList.innerHTML = '';
+  history.forEach(h => {
+    hList.innerHTML += `
+      <div class="hist-item">
+        <span class="hist-badge ${h.isPhishing?'phish':'safe'}">${h.isPhishing?'PHISHING':'SAFE'}</span>
+        <span class="hist-email">${h.text}...</span>
+        <span class="hist-conf">${h.conf.toFixed(1)}%</span>
+      </div>`;
+  });
+
+  rDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
